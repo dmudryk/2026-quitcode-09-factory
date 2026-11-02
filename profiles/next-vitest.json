@@ -1,0 +1,9 @@
+{
+  "name": "next-vitest",
+  "commands": {
+    "test": { "argv": ["node", "scripts/factory-tap.mjs", "--checks"], "parse": "tap", "timeoutMs": 600000 }
+  },
+  "bashAllow": ["node scripts/factory-tap.mjs", "node node_modules/vitest/vitest.mjs run"],
+  "sourceGlobs": ["src/lib/**/*.ts", "src/app/**/actions.ts"],
+  "testGlobs": ["tests/**", "src/**/*.test.ts", "src/**/*.test.tsx"]
+}
