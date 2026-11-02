@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "id": "bulk-db",
+  "title": "масове рішення менеджера",
+  "intent": "Implement \"масове рішення менеджера\" in this Next.js + Supabase app so that every acceptance criterion below holds as a rule, not only for the examples in the visible tests. Why: Після канікул і в сезон застуд у черзі менеджера підрозділу збирається по 10–20 записів заявок, і більшість із них він схвалює без питань. Зараз кожен запис треба схвалити окремо: відкрити, натиснути, дочекатися сторінки — і так для кожного. Після цієї вимоги менеджер позначає кілька записів своєї черги і схвалює їх однією дією, а записи з питаннями розглядає окремо, як і раніше. Source: <twin>/requirements/02-bulk-decisions.md. Contract (fixed by the protected tests tests/db/bulk-decisions-db.test.ts and tests/e2e/manage-bulk.spec.ts): add ONE new migration supabase/migrations/20261102120000_bulk_decisions.sql with public.approve_leave_records(p_record_ids uuid[]) returns integer (the number of approved records), language plpgsql, security invoker, set search_path = '', execute revoked from public and anon and granted to authenticated only. All-or-nothing in one transaction: if any selected record is not in the caller's queue (not visible to the caller, or its division is not managed by the caller: private.is_division_manager) raise exception 'NOT_IN_QUEUE'; else if any selected record is not pending raise exception 'NOT_PENDING'; only then approve all of them (decided_by/decided_at are set by the existing trigger, never by the client). Never edit existing migrations. Then wire it into the manager page /manage (src/app/manage/page.tsx + src/app/manage/actions.ts, domain helpers in src/lib/leave/**): every pending record card (data-testid=\"queue-record\") gets a native checkbox with the accessible name «Вибрати» whose value is the record id, all checkboxes belong to one native form (e.g. the HTML form attribute) whose submit button is «Схвалити вибрані»; a server action reads all selected ids from FormData, calls supabase.rpc(\"approve_leave_records\"), and redirects back to /manage showing the success message «Схвалено записів: N» (N = the returned count) or, for NOT_IN_QUEUE, «Серед вибраних є записи не з вашої черги. Жодне рішення не збережено.» and, for NOT_PENDING, «Серед вибраних є записи, щодо яких рішення вже ухвалено. Жодне рішення не збережено.» (exact PM wording, in an error notice). Keep the existing per-record «Схвалити» / «Повернути на доопрацювання» forms working. Add the new function to src/lib/supabase/database.types.ts by hand (Functions). AC-BULK-04 (the page state after «Схвалити вибрані») is proven only by UAT after the deploy, not by the gates here. Also mark AC-BULK-01..03 rows in docs/conformance.md as «реалізовано» with the real code and test paths (test: tests/db/bulk-decisions-db.test.ts), keeping the table format.",
+  "size": "small",
+  "requirements": [
+    {
+      "id": "AC-BULK-01",
+      "description": "Дано у черзі менеджера «Математики» 3 записи на розгляді. Коли менеджер позначає 2 з них і схвалює вибрані однією дією. Тоді обидва позначені записи мають статус «схвалено», у кожного автор рішення — цей менеджер і час рішення, а третій запис лишається на розгляді.",
+      "verifiedBy": [
+        "visible:AC-BULK-01",
+        "holdout:bulk-db"
+      ]
+    },
+    {
+      "id": "AC-BULK-02",
+      "description": "Дано менеджер «Математики» позначив 2 записи на розгляді зі своєї черги і 1 запис на розгляді підрозділу «Початкова школа». Коли він схвалює вибрані. Тоді жоден із 3 записів не змінюється — усі лишаються на розгляді без автора рішення, — а менеджер бачить повідомлення «Серед вибраних є записи не з вашої черги. Жодне рішення не збережено.»",
+      "verifiedBy": [
+        "visible:AC-BULK-02",
+        "holdout:bulk-db"
+      ]
+    },
+    {
+      "id": "AC-BULK-03",
+      "description": "Дано менеджер «Математики» позначив 2 записи на розгляді і 1 запис своєї черги, який уже схвалено. Коли він схвалює вибрані. Тоді жоден запис не змінюється: 2 записи лишаються на розгляді, у схваленого той самий автор і час рішення, а менеджер бачить повідомлення «Серед вибраних є записи, щодо яких рішення вже ухвалено. Жодне рішення не збережено.»",
+      "verifiedBy": [
+        "visible:AC-BULK-03",
+        "holdout:bulk-db"
+      ]
+    }
+  ],
+  "nonFunctionals": {
+    "security": "security invoker RPC under the existing RLS and column grants (only status/comment updatable); execute only for authenticated; no service-role key in the page or action; the server never trusts record ids from the form — the database re-checks every id.",
+    "accessRules": "Only the manager of the record's division approves it (private.is_division_manager); employee and admin get NOT_IN_QUEUE for any record; records of other divisions are refused, never skipped.",
+    "idempotency": "Repeating the same selection after success changes nothing and returns NOT_PENDING (records are no longer pending); duplicate ids in one call count once.",
+    "tenancy": "Single school portal; the division is the only partition: a manager acts only on records of the divisions they manage.",
+    "failureModes": "All-or-nothing: any refused record → exception NOT_IN_QUEUE or NOT_PENDING and no record changes (one transaction); the page shows the exact PM message; unknown errors show the existing generic error; existing single-record decisions unchanged."
+  },
+  "visibleTests": {
+    "failToPass": [
+      "AC-BULK-01",
+      "AC-BULK-02",
+      "AC-BULK-03"
+    ],
+    "passToPass": [
+      "AC-LEAVE-01",
+      "AC-LEAVE-02",
+      "AC-LEAVE-03",
+      "AC-LEAVE-04",
+      "AC-LEAVE-05",
+      "AC-LEAVE-06",
+      "AC-LEAVE-07",
+      "AC-LEAVE-08",
+      "AC-LEAVE-09",
+      "AC-LEAVE-10",
+      "AC-LEAVE-11",
+      "AC-USERS-01",
+      "AC-USERS-02",
+      "AC-USERS-03",
+      "AC-USERS-04",
+      "AC-USERS-05",
+      "AC-USERS-06",
+      "AC-USERS-07",
+      "AC-USERS-08",
+      "AC-USERS-09",
+      "AC-USERS-10",
+      "AC-USERS-12",
+      "AC-USERS-13",
+      "AC-USERS-14",
+      "AC-USERS-15",
+      "AC-USERS-16",
+      "AC-USERS-17"
+    ]
+  },
+  "holdouts": [
+    "bulk-db"
+  ],
+  "protected": [
+    "tests/**",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "scripts/**",
+    "package.json",
+    "package-lock.json",
+    ".github/**",
+    "openspec/**",
+    "requirements/**",
+    "vitest.config.mts",
+    "supabase/seed.sql",
+    "supabase/config.toml",
+    "supabase/migrations/20261012000000_profiles_and_roles.sql",
+    "supabase/migrations/20261013000000_leave_requests.sql",
+    "supabase/migrations/20261016000000_leave_rules_v0_2.sql",
+    "supabase/migrations/20261017000000_require_leave_records.sql",
+    "supabase/migrations/20261018000000_manager_helpers_require_role.sql",
+    "supabase/migrations/20261019000000_enforce_leave_rules_in_db.sql",
+    "supabase/migrations/20261020000000_admin_user_management.sql",
+    "supabase/migrations/20261020000100_admin_set_role_private.sql",
+    "tests/e2e/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "playwright.config.ts"
+  ],
+  "changeClass": "migration"
+}

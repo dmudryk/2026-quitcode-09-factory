@@ -2,3 +2,5 @@ node_modules/
 # Run state (events, traces, proof packs, workspaces) belongs to the factory store, never to this repo.
 store/
 *.log
+# Holdout keys never go into git (examples keep sealed sets only).
+**/.holdout-key

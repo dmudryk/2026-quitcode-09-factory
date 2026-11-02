@@ -1,0 +1,26 @@
+{
+  "sourceGlobs": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "maxFileLines": 400,
+  "duplication": {
+    "minLines": 8
+  },
+  "dependencyRules": [
+    {
+      "from": "src/app/**",
+      "mustNotImport": [
+        "@/lib/supabase/admin*"
+      ],
+      "reason": "service-role client only in server actions under src/lib/**/actions"
+    },
+    {
+      "from": "src/lib/**",
+      "mustNotImport": [
+        "src/app/**"
+      ],
+      "reason": "domain code must not depend on pages"
+    }
+  ]
+}
