@@ -17,6 +17,13 @@ export function createWorkspace(target, wsDir) {
   const base = git(target, ['rev-parse', 'HEAD']);
   fs.mkdirSync(path.dirname(wsDir), { recursive: true });
   git(target, ['worktree', 'add', '--detach', wsDir, base]);
+  // Course edition (WS9): a worktree has no node_modules (it is gitignored), so a Node/Next.js target could not run its tests.
+  // Link the target's installed dependencies in as a directory junction: no admin rights needed on Windows, and
+  // removeWorkspace unlinks it without touching the target. Dependencies stay the human's job (package.json is protected).
+  const deps = path.join(target, 'node_modules');
+  if (fs.existsSync(deps) && !fs.existsSync(path.join(wsDir, 'node_modules'))) {
+    fs.symlinkSync(fs.realpathSync.native(deps), path.join(wsDir, 'node_modules'), 'junction');
+  }
   // Its real path: a relative permission grant (--allow-fs-read=.) must cover the real paths the module loader opens.
   return { base, ws: fs.realpathSync.native(wsDir) };
 }
