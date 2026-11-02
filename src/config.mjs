@@ -27,7 +27,9 @@ const factorySchema = {
     agent: {
       type: 'object', required: ['adapter', 'model'],
       properties: { adapter: { enum: ['claude', 'scripted', 'command'] }, model: { type: 'string' }, reviewModel: { type: 'string' },
-        command: { type: 'array', items: { type: 'string' } } },
+        command: { type: 'array', items: { type: 'string' } },
+        // Course edition: the agent CLI's real path, e.g. a native claude.exe when an npm shim shadows it on PATH.
+        executable: { type: 'string', minLength: 1 } },
     },
     roles: { type: 'object', required: ['builder'], additionalProperties: role },
     budgets: {
@@ -59,6 +61,19 @@ const factorySchema = {
     holdouts: { type: 'object', properties: { requireSealed: { type: 'boolean' }, keyEnv: { type: 'string' } } },
     readiness: { type: 'object', properties: { maxAgeDays: { type: 'number', minimum: 0 } } },
     observe: { type: 'object', additionalProperties: { type: 'string' } },
+    // Course edition: delivery of a released run to the hosting platform (src/deliver.mjs). Without it, release stops at a
+    // local branch as upstream does. gh is an argv prefix, so tests and Windows setups can point it at a real executable.
+    delivery: {
+      type: 'object',
+      properties: {
+        remote: { type: 'string', minLength: 1 }, base: { type: 'string', minLength: 1 },
+        mergeMethod: { enum: ['squash', 'merge', 'rebase'] },
+        autoMerge: { enum: ['auto-tier', 'after-approval', 'never'] },
+        gh: { type: 'array', minItems: 1, items: { type: 'string' } },
+        uatUrl: { type: 'string' }, healthPath: { type: 'string' },
+        uatCommand: { type: 'array', minItems: 1, items: { type: 'string' } },
+      },
+    },
   },
 };
 const policySchema = {

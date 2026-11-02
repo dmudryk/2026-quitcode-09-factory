@@ -8,6 +8,7 @@ import { openStore, loadRun, listRuns, transition, readKillswitch, setKillswitch
 import { advance, resumeRun, startRun } from './pipeline.mjs';
 import { doctor } from './doctor.mjs';
 import { release, recordIncidentForRun } from './delivery.mjs';
+import { deliver, uat } from './deliver.mjs';
 import { appendProgress } from './context.mjs';
 import { computeMetrics } from './metrics.mjs';
 import { renderDashboard } from './dashboard.mjs';
@@ -47,7 +48,9 @@ function printRun(run) {
   for (const na of last?.notApplicable ?? []) console.log(`  ${'n/a'.padEnd(10)} ${na}`);
   if (run.proofDigest && run.state === 'awaiting-release-approval') console.log(`  proof pack ${run.proofDigest} — factory proof ${run.id}`);
   if (run.escalation && run.state === 'needs-human') console.log(`  question for ${run.escalation.owner}: ${run.escalation.question} (default ${run.escalation.defaultAction} at ${run.escalation.deadline})`);
-  if (run.release) console.log(`  released to branch ${run.release.branch} at ${run.release.commit.slice(0, 12)} · rollback target ${run.release.rollbackTarget.slice(0, 12)} · not pushed`);
+  if (run.release) console.log(`  released to branch ${run.release.branch} at ${run.release.commit.slice(0, 12)} · rollback target ${run.release.rollbackTarget.slice(0, 12)} · ${run.delivery ? `pushed to ${run.delivery.remote}` : 'not pushed'}`);
+  if (run.delivery) console.log(`  PR ${run.delivery.pr} · ${run.delivery.mergeState}${run.delivery.mergeCommit ? ` ${run.delivery.mergeCommit.slice(0, 12)}` : ''} · ${run.delivery.reason}${run.delivery.error ? ` · ${run.delivery.error}` : ''}`);
+  if (run.uat) console.log(`  UAT ${run.uat.passed ? 'PASS' : 'FAIL'} on ${run.uat.url} for ${run.uat.grep}${run.uat.report ? ` · report ${run.uat.report}` : ''}`);
 }
 
 const COMMANDS = {
@@ -157,7 +160,30 @@ const COMMANDS = {
     const text = fs.readFileSync(path.join(runDir(store, args._[0]), 'proof-pack.md'), 'utf8');
     console.log(text);
     console.log(`digest: ${sha256(text)}`);
+    // Course edition: the post-release UAT addendum, shown after the digest it is not part of.
+    const addendum = path.join(runDir(store, args._[0]), 'uat.md');
+    if (fs.existsSync(addendum)) console.log(`\n${fs.readFileSync(addendum, 'utf8')}`);
     return 0;
+  },
+  // Course edition: push the release branch, open a PR with the proof pack, auto-merge when the tier allows it.
+  async deliver(args) {
+    const store = openStore(dirs(args).store);
+    const run = loadRun(store, need({ run: args._[0] }, 'run'));
+    const done = deliver({ store, runId: run.id, config: loadConfig(run.controlDir) });
+    printRun(done);
+    return done.delivery.mergeState === 'auto-merge-failed' ? 1 : 0;
+  },
+  // Course edition: after the merge and deploy, run the target's UAT for the run's AC IDs; a failure records an incident.
+  async uat(args) {
+    const store = openStore(dirs(args).store);
+    const run = loadRun(store, need({ run: args._[0] }, 'run'));
+    const r = await uat({ store, runId: run.id, config: loadConfig(run.controlDir), by: need(args, 'as'), url: args.url, cwd: args.cwd,
+      grep: args.grep, timeoutMs: args['timeout-min'] ? Number(args['timeout-min']) * 60_000 : undefined, comment: !args['no-comment'],
+      log: (m) => console.log(m) });
+    console.log(r.output.trim().split('\n').slice(-15).join('\n'));
+    printRun(r.run);
+    if (r.incident) console.log(`incident ${r.incident.id} recorded; demoted ${r.incident.changeClasses.join(', ')}`);
+    return r.passed ? 0 : 1;
   },
   async incident(args) {
     const store = openStore(dirs(args).store);

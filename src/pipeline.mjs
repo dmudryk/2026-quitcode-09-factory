@@ -81,7 +81,7 @@ async function callAgent(role, ctx, extra = {}) {
         budgetUsd: remaining, timeoutMs: config.factory.budgets.agentTimeoutMs, policy: policyFor(role, ctx),
         killswitch: () => (skip(run, 'killswitch') ? { engaged: false, disabledTools: [] } : readKillswitch(store)),
         shouldStop: () => !skip(run, 'killswitch') && readKillswitch(store).engaged, unsafeNoHook: skip(run, 'hook'),
-        scripted: run.scripted, store, run, task, ...extra,
+        scripted: run.scripted, store, run, task, executable: config.factory.agent.executable, ...extra,
       });
       set({ 'gen_ai.response.model': out.model, 'gen_ai.usage.input_tokens': out.usage?.input_tokens ?? null,
         'gen_ai.usage.output_tokens': out.usage?.output_tokens ?? null, 'factory.cost_usd': out.costUsd, 'factory.denials': out.denials.length,
