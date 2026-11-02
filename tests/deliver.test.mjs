@@ -1,4 +1,4 @@
-// Course edition (QuitCode WS9): delivery after release and UAT after the deploy, with a fake GitHub CLI and a local
+// Course edition (WS9): delivery after release and UAT after the deploy, with a fake GitHub CLI and a local
 // bare repository as the remote. Nothing here touches the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

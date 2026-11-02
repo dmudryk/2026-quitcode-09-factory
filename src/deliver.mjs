@@ -1,4 +1,4 @@
-// Course edition (QuitCode WS9): delivery after release, and UAT after the deploy (principles 7.1, 7.2).
+// Course edition (WS9): delivery after release, and UAT after the deploy (principles 7.1, 7.2).
 // Upstream stops at a local branch. Here a released run can go further, only as far as its autonomy tier allows:
 //   deliver: push factory/<run> → open a PR whose body is the proof pack → turn on auto-merge when the tier allows it;
 //   uat:     wait for the merge and the deploy of the merge commit → run the target's UAT for the run's AC IDs →

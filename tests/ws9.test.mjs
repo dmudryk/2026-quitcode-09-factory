@@ -1,4 +1,4 @@
-// Course edition (QuitCode WS9): tests for what this edition adds to principled-factory for a Next.js + Vitest stack.
+// Course edition (WS9): tests for what this edition adds to principled-factory for a Next.js + Vitest stack.
 // Delivery (push, PR, auto-merge, UAT) is tested separately in tests/deliver.test.mjs.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';

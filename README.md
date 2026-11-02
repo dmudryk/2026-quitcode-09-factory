@@ -1,3 +1,47 @@
+# Курсова редакція principled-factory · QuitCode WS9
+
+Це курсова редакція [principled-factory](https://github.com/koldovsky/principled-factory) для QuitCode WS9 «Software Factory».
+Її зроблено з upstream на коміті `0e3622b` (історію upstream збережено). Тут фабрика працює на стеку курсу: Next.js,
+TypeScript, Supabase і Vitest. Працює вона в **близнюку** проєкту з власним розгортанням.
+
+**Почніть тут:** [docs/uk/README.md](docs/uk/README.md). Там швидкий старт за 10 кроків.
+
+## Що додано до upstream
+
+- **Профіль і адаптер тестів.**
+  - Профіль `next-vitest` (`profiles/next-vitest.json`).
+  - Шаблон `templates/next-vitest/factory-tap.mjs`: Vitest → стабільний TAP, по одному рядку на кожен критерій приймання (AC), плюс typecheck, lint і ac-coverage.
+- **Імпортер вимог** `tools/ac-to-task.mjs`.
+  - Перетворює вимогу PM (markdown або GitHub issue; формати `lines`, `table`, `block`) на задачу фабрики. ID критерію PM стає ID вимоги.
+  - Місця для адаптації позначено коментарями «ТОЧКА РОЗШИРЕННЯ» ([docs/uk/adapt-importer.md](docs/uk/adapt-importer.md)).
+- **Приклад control** `examples/next-supabase/control`.
+  - Будівельник і рев'юер — Sonnet; бюджет прогону `runUsd 8`; приховані сценарії обов'язково запечатані; оцінювач Vitest/PGlite.
+  - Для близнюка **кожен клас змін, міграції теж, випускається без людини**. Upstream за замовчуванням суворіший; чому — в README прикладу.
+- **Робочий простір і супроводжуваність.**
+  - `node_modules` цільового репо підключається в робочий простір через junction.
+  - `.tsx` перевіряється воротами супроводжуваності.
+- **`doctor`** не каже «готово», коли тести не запустилися, немає залежностей, бракує виконуваного файлу агента або немає входу в `gh`.
+- **`factory deliver <run>`:** push гілки → PR, де описом є proof pack → автозлиття, лише якщо це дозволяє рівень автономії.
+- **`factory uat <run> --url`:**
+  - чекає злиття й розгортання коміту злиття;
+  - запускає UAT цілі з WS8 для AC прогону;
+  - кладе результат поруч із затвердженим proof pack;
+  - якщо UAT провалено → інцидент → пониження класу змін.
+- **Документація українською** в `docs/uk/`:
+  - [README](docs/uk/README.md), [близнюк](docs/uk/twin.md), [імпортер](docs/uk/adapt-importer.md);
+  - [Cursor](docs/uk/cursor.md), [межі й вартість](docs/uk/limits.md).
+
+Межі upstream лишаються в силі, і до них додано ще кілька:
+- профіль `next-vitest` не ізольований;
+- затвердження — це заявлені особи, а не автентифіковані;
+- вартість реального зрізу не виміряна.
+
+Подробиці — у [docs/uk/limits.md](docs/uk/limits.md).
+
+Ліцензія — та сама, що й в upstream: PolyForm Noncommercial 1.0.0 (див. [Licence](#license)).
+
+---
+
 # principled-factory
 
 A small agentic software factory that implements the 35 factory principles in [docs/principles.md](docs/principles.md). A
@@ -117,3 +161,7 @@ tests/                   tagged tests; `factory conformance` reads the tags
 ## License
 
 [PolyForm Noncommercial 1.0.0](LICENSE). Copyright (c) 2026 Vyacheslav Koldovskyy.
+
+Required Notice: Copyright (c) 2026 Vyacheslav Koldovskyy (https://dev-ai.dev)
+
+Автор дозволяє учасникам курсу QuitCode використовувати й змінювати цю редакцію в навчанні й у власних проєктах компанії.
