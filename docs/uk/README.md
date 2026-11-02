@@ -67,7 +67,9 @@ Copy-Item C:\pf\factory\templates\next-vitest\factory-tap.mjs scripts\factory-ta
 node scripts/factory-tap.mjs --checks    # TAP: typecheck, lint, ac-coverage і по рядку на кожен AC — усе «ok»
 ```
 
-Закомітьте `scripts/factory-tap.mjs` у `main` звичайним PR: він зелений і нічого не змінює в продукті.
+Закомітьте `scripts/factory-tap.mjs` у `main` звичайним PR: він зелений і нічого не змінює в продукті (або разом із червоними
+тестами кроку 4 — так зроблено в демо-близнюку). Якщо в проєкті є fallow (шаблон курсу), допишіть `"scripts/factory-tap.mjs"`
+у `entry` файлу `.fallowrc.jsonc`: скрипт запускають руками, і без цього fallow позначить його «unused file».
 
 **2. Копія control.** Поза репозиторієм близнюка:
 
@@ -85,9 +87,23 @@ node C:\pf\factory\tools\ac-to-task.mjs --file C:\pf\twin\requirements\03-x.md `
   --ac AC-X-01,AC-X-02 --id x-db --holdout x-db --target C:\pf\twin --size small --out C:\pf\control\tasks\x-db.json
 ```
 
-Для issue — `--issue власник/репо#12`, для таблиць чи блоків — `--format table|block` (`adapt-importer.md`). Потім **заповніть
-п'ять `nonFunctionals`** у JSON: імпортер пише `TBD`, і фабрика таку задачу не прийме («TBD = не готово»). 1–3 критерії на задачу.
-Не пишіть `>` замість `--out`: PowerShell 5.1 збереже файл у UTF-16, і фабрика його не прочитає.
+Для issue — `--issue власник/репо#12`, для таблиць чи блоків — `--format table|block` (`adapt-importer.md`). 1–3 критерії на
+задачу. Не пишіть `>` замість `--out`: PowerShell 5.1 збереже файл у UTF-16, і фабрика його не прочитає.
+
+Потім у JSON задачі зробіть дві речі руками:
+
+- **Заповніть п'ять `nonFunctionals`** (`security`, `accessRules`, `idempotency`, `tenancy`, `failureModes`). Імпортер пише
+  `TBD` навмисно: «TBD = не готово». Увага, де саме фабрика відмовить: `F approve intent` задачу з `TBD` **приймає**, а
+  відмовляє `F run` на допуску, ще до агента і за $0:
+  ```text
+  run-…  x-db  state=refused  (task not admissible)
+    - non-functional "security" is still undecided
+    …
+    attempts 0/? · cost $0.0000
+  ```
+- **Допишіть в `intent` контракт**, який фіксують ваші червоні тести (крок 4): назви нових функцій бази чи модулів, шляхи
+  файлів, дослівні повідомлення з вимоги, `data-testid`. Імпортер дає лише «навіщо» і джерело. У демо-близнюку контракт писала
+  людина — зразок у `examples/leave-portal-twin/control/tasks/bulk-db.json`.
 
 **4. Червоні тести на гілці.** Фабрика доводить зміну тестом, який падає ДО неї й проходить ПІСЛЯ:
 
@@ -122,6 +138,7 @@ F doctor
 
 Чекайте `ready`. Найважливіші рядки: `tests-ran` (тести справді запустилися і частина проходить), `deterministic-tests`
 (два прогони однакові), `agent` (`claude.exe`), `delivery:gh` і `delivery:remote`. Дерево має бути чистим: закомітьте все.
+Без свіжого успішного `doctor` (`readiness.maxAgeDays`) `F run` відмовить: `the target has no recent passing readiness check`.
 
 **7. Затвердження людиною.** Фабрика працює лише з тим, що затвердила людина, і прив'язує затвердження до точного вмісту файлу:
 
@@ -130,7 +147,8 @@ F approve config --as <ваше ім'я>
 F approve intent x-db --as <ім'я PM або ваше>
 ```
 
-Змінили `factory.json`, правила чи задачу — затвердьте знову.
+Змінили `factory.json`, правила чи задачу (зокрема заповнили `nonFunctionals` чи `intent`) — затвердьте знову: затвердження
+прив'язане до дайджесту файлу.
 
 **8. Прогін.**
 
@@ -152,6 +170,16 @@ F deliver <run-id>
 Push гілки → PR з proof pack в описі → автозлиття (`gh pr merge --auto --squash`), бо рівень `auto`. GitHub зіллє PR, коли пройдуть
 обов'язкові перевірки ruleset; після злиття CI `db-deploy` застосує нові міграції до Supabase **близнюка**, Vercel розгорне прод.
 
+Дві умови в репозиторії близнюка обов'язкові (`twin.md`, розділи 1 і 5):
+
+- **Allow auto-merge** увімкнено, інакше GitHub відмовить у `--auto`;
+- **ruleset з обов'язковими перевірками** на `main`. Без нього GitHub не має чого чекати, і `deliver` зливає PR **одразу**, ще до
+  CI. Чекають лише *обов'язкові* перевірки: дорадча (наприклад fallow) може бути червоною, а PR однаково зіллється.
+
+Чесно про демо 02.11: прогін на близнюку зроблено версією спайку, у якій ще не було `deliver`, тож поставку виконали тими самими
+командами вручну — `git push -u origin factory/<run-id>`, `gh pr create --base main --head factory/<run-id> --body-file C:\pf\store\runs\<run-id>\proof-pack.md`,
+автозлиття ввімкнула людина. `F deliver` і `F uat` перевірено автотестами з фейковим `gh`, на живому репозиторії — ще ні.
+
 **10. UAT після розгортання.**
 
 ```powershell
@@ -165,6 +193,26 @@ F uat <run-id> --url https://<близнюк>.vercel.app --as <ваше ім'я>
 Звіт UAT (`docs/qa/uat/<дата>/`) з'являється у вашій робочій копії: закомітьте його (як у WS8, для PM), інакше наступний
 `F doctor` скаже «дерево не чисте». Наступна задача: `git switch main; git pull`, нова гілка тестів — і знову з кроку 3.
 
+На демо-близнюку 02.11 UAT після злиття зробив CI близнюка: e2e 11/11, зокрема всі чотири AC-BULK (AC-BULK-04 — лише e2e).
+
+## Як це пройшло на демо-близнюку (02.11.2026)
+
+Вимога PM «масове рішення менеджера» (AC-BULK-01…04), задача `bulk-db` на AC-BULK-01…03, будівельник і рев'юер — Sonnet.
+Control цього прогону — `examples/leave-portal-twin/control`.
+
+| Крок | Що сталося |
+|---|---|
+| імпорт | 3 критерії, 27 pass-to-pass; попередження про критерій лише з e2e (AC-USERS-11) |
+| `approve intent` з `TBD` | прийнято; `F run` відмовив на допуску: 5 × `is still undecided`, $0 |
+| `doctor` | `ready`, 102 тести однакові у двох прогонах, 33 с |
+| `F run` | `released` з першої спроби з трьох, **160 с, $0.35** (будівельник $0.26, рев'юер $0.09) |
+| ворота | boundary (29 викликів, 2 відмови хука), integrity (287 файлів), diff (7 файлів, 115 рядків), maintainability, visible-tests (102), repeat, holdouts 3/3, review (0 зауважень) — усі PASS; mutation — n/a: на змінених рядках `sourceGlobs` немає операторів, які можна змінити |
+| поставка | вручну (див. крок 9); PR злито автоматично після обов'язкових перевірок |
+
+Що ворота **не** спіймали (видно лише в PR): дорадчий fallow був червоним — невикористаний `scripts/factory-tap.mjs` і
+складність `ManagePage` 22; будівельник сам позначив рядки `docs/conformance.md` як «реалізовано» (так просив `intent`, але
+це «автор перевіряє себе» — рядки має перевірити людина). Подробиці — `limits.md`.
+
 ## Пастки Windows
 
 | Симптом | Причина | Що робити |
@@ -173,6 +221,7 @@ F uat <run-id> --url https://<близнюк>.vercel.app --as <ваше ім'я>
 | `spawn … ENOENT`, `doctor`: `agent … shell shim` | `claude` встановлено через npm | нативний `claude.exe`; або в `factory.json`: `"agent": { …, "executable": "C:\\Users\\<ви>\\.local\\bin\\claude.exe" }` |
 | усі рядки TAP `not ok`, `tests-ran` FAIL | немає `node_modules` | `npm ci` у близнюку |
 | `clean` FAIL | незакомічені або невідстежувані файли | закомітьте або додайте в `.gitignore` |
+| `delivery:remote` FAIL | у близнюку немає remote `origin` | `git remote add origin <url близнюка>` |
 | хук відхилив `npm test`, `… \| tail` | політика: лише точні команди, без конвеєрів | будівельник сам переходить на `node scripts/factory-tap.mjs`; нічого робити не треба |
 | прогін перервано (Ctrl+C, сон ноутбука) | процес фабрики зупинився посеред стадії | `F resume <run-id> --recover` продовжує його; або почніть новий `F run`. Аварійна зупинка всіх агентів — `F stop --as <ім'я>`, зняти — `F start --as <ім'я>` |
 
