@@ -145,7 +145,10 @@ export async function uat({ store, runId, config, by, url, cwd, grep, timeoutMs 
   if (!pattern) throw new FactoryError('USAGE', 'no AC IDs to test: pass --grep "<AC-…|AC-…>"');
   const [cmd, ...pre] = delivery.uatCommand ?? ['node', 'scripts/uat/run.mjs'];
   log(`running UAT for ${pattern} on ${base}`);
-  const res = await runProcess({ command: cmd, args: [...pre, '--url', base, '--grep', pattern], cwd: cwd ?? target, env: process.env, timeoutMs: 60 * 60_000 });
+  // The target's UAT needs the operator's environment (its .env, Playwright, the UAT reviewer), but never the holdout key.
+  const env = { ...process.env };
+  delete env[config.factory.holdouts?.keyEnv ?? 'FACTORY_HOLDOUT_KEY'];
+  const res = await runProcess({ command: cmd, args: [...pre, '--url', base, '--grep', pattern], cwd: cwd ?? target, env, timeoutMs: 60 * 60_000 });
   const output = `${res.stdout}\n${res.stderr}`;
   const report = [...output.matchAll(/Звіт:\s*(\S*report\.md)/g)].at(-1)?.[1] ?? null;
   const passed = res.exitCode === 0;

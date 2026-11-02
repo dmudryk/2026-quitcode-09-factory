@@ -56,7 +56,7 @@ async function released({ builder = 'docs', task = 'readme', autoMerge = 'auto-t
   return { ex, store, run, origin, calls, config: loadConfig(ex.control) };
 }
 const env = (vars) => { for (const [k, v] of Object.entries(vars)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } };
-const reset = () => env({ FAKE_GH_MERGE: undefined, FAKE_GH_STATE: undefined, FAKE_GH_OID: undefined, FAKE_GH_AUTH: undefined, FAKE_UAT_EXIT: undefined, FAKE_UAT_LOG: undefined });
+const reset = () => env({ FACTORY_HOLDOUT_KEY: undefined, FAKE_GH_MERGE: undefined, FAKE_GH_STATE: undefined, FAKE_GH_OID: undefined, FAKE_GH_AUTH: undefined, FAKE_UAT_EXIT: undefined, FAKE_UAT_LOG: undefined });
 
 test('[P7.1][P7.2] an auto-tier release is pushed, opened as a PR with the proof pack as its body, and set to auto-merge', async () => {
   reset();
@@ -155,10 +155,12 @@ test('[P7.2] after the merge is deployed, UAT runs for the run\'s AC IDs and its
     deliver({ store, runId: run.id, config });
     const proofBefore = sha256(fs.readFileSync(path.join(runDir(store, run.id), 'proof-pack.md'), 'utf8'));
     const uatLog = path.join(ex.dir, 'uat-args.json');
-    env({ FAKE_GH_STATE: 'MERGED', FAKE_GH_OID: 'feedface', FAKE_UAT_LOG: uatLog });
+    env({ FAKE_GH_STATE: 'MERGED', FAKE_GH_OID: 'feedface', FAKE_UAT_LOG: uatLog, FACTORY_HOLDOUT_KEY: 'a-test-key-of-sixteen+' });
     const r = await uat({ store, runId: run.id, config, by: 'alice', url: `${app.url}/`, cwd: ex.target, everyMs: 10, timeoutMs: 5000 });
     assert.equal(r.passed, true);
-    assert.deepEqual(JSON.parse(fs.readFileSync(uatLog, 'utf8')), ['--url', app.url, '--grep', 'R1']);
+    const seen = JSON.parse(fs.readFileSync(uatLog, 'utf8'));
+    assert.deepEqual(seen.args, ['--url', app.url, '--grep', 'R1']);
+    assert.equal(seen.sawHoldoutKey, false, 'the holdout key never reaches the UAT command');
     assert.equal(r.report, 'docs/qa/uat/2026-11-03/report.md');
     const after = loadRun(store, run.id);
     assert.equal(after.delivery.mergeState, 'merged');
