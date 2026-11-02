@@ -1,0 +1,12 @@
+{
+  "evaluator": "vitest-holdout.mjs",
+  "note": "ШАБЛОН. Сценарії пише людина з тексту AC, не дивлячись на код; будівельник бачить лише кількість пройдених. Перед запуском перейменуйте файл під свій набір (наприклад bulk-db.json) і запечатайте: factory holdouts seal bulk-db --control <control>.",
+  "scenarios": [
+    {
+      "id": "H01a",
+      "ac": "AC-EXAMPLE-01",
+      "input": "teacher.second@example.test",
+      "source": "import { describe, expect, it } from \"vitest\";\nimport { normalizeEmail } from \"@/lib/users/invite\";\n\ndescribe(\"прихований сценарій для AC-EXAMPLE-01\", () => {\n  it(\"H01a: адреса в іншому регістрі вважається тією самою\", () => {\n    expect(normalizeEmail(\"  Teacher.Second@Example.TEST \")).toBe(\"teacher.second@example.test\");\n  });\n});\n"
+    }
+  ]
+}

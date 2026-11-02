@@ -1,0 +1,8 @@
+{
+  "approvedModels": ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"],
+  "approvedTools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
+  "unattendedClasses": ["docs", "code", "migration", "default"],
+  "dataBoundary": { "denyGlobs": ["**/.env*", "**/*.pem", "**/secrets/**", "supabase/.temp/**", ".vercel/**"] },
+  "attribution": { "trailer": "Assisted-by" },
+  "approvers": []
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "name": "next-supabase-twin",
+  "profile": "next-vitest",
+  "agent": {
+    "adapter": "claude",
+    "model": "claude-sonnet-5-5",
+    "reviewModel": "claude-sonnet-5-5"
+  },
+  "roles": {
+    "planner": {
+      "capabilities": { "privateData": true, "untrustedContent": true, "externalComms": false },
+      "tools": ["Read", "Glob", "Grep"]
+    },
+    "builder": {
+      "capabilities": { "privateData": true, "untrustedContent": true, "externalComms": false },
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
+    },
+    "reviewer": {
+      "capabilities": { "privateData": true, "untrustedContent": true, "externalComms": false },
+      "tools": ["Read", "Glob", "Grep"]
+    }
+  },
+  "budgets": { "maxAttempts": 3, "runUsd": 8, "dailyUsd": 30, "agentTimeoutMs": 2400000 },
+  "gates": {
+    "order": ["integrity", "diff", "maintainability", "visible-tests", "repeat", "mutation", "holdouts", "review"],
+    "repeat": 1,
+    "diffBudgetLines": 500,
+    "mutation": { "maxMutants": 4, "minScore": 0.6 }
+  },
+  "autonomy": {
+    "classes": [
+      { "name": "docs", "paths": ["**/*.md", "docs/**"], "tier": "auto" },
+      { "name": "code", "paths": ["src/**"], "tier": "auto" },
+      { "name": "migration", "paths": ["supabase/migrations/**", "supabase/seed.sql"], "tier": "auto" }
+    ],
+    "default": "auto",
+    "promoteAfter": 3
+  },
+  "review": { "wipLimit": 3 },
+  "escalation": { "owner": "dev-lead", "defaultAfterHours": 24, "defaultAction": "abandon" },
+  "context": { "mapMaxLines": 100 },
+  "trace": { "captureContent": false },
+  "holdouts": { "requireSealed": true, "keyEnv": "FACTORY_HOLDOUT_KEY" },
+  "readiness": { "maxAgeDays": 7 },
+  "delivery": {
+    "remote": "origin",
+    "base": "main",
+    "mergeMethod": "squash",
+    "autoMerge": "auto-tier",
+    "healthPath": "/api/health"
+  }
+}
