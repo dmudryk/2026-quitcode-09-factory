@@ -1,8 +1,8 @@
-# Control демо-прогону на близнюку leave-portal (02.11.2026)
+# Control демо-прогону на двійнику leave-portal (02.11.2026)
 
-Це control, з яким фабрика справді відпрацювала на демо-близнюку
+Це control, з яким фабрика справді відпрацювала на демо-двійнику
 [2026-quitcode-09-leave-portal-factory](https://github.com/koldovsky/2026-quitcode-09-leave-portal-factory) — як запис,
-а не як шаблон. Шаблон для свого близнюка беріть з `examples/next-supabase/control` (там є `delivery` і коментарі
+а не як шаблон. Шаблон для свого двійника беріть з `examples/next-supabase/control` (там є `delivery` і коментарі
 українською); цю теку — щоб побачити, як виглядає заповнена задача і з чим фабрика пройшла всі ворота.
 
 | Файл | Що в ньому |
@@ -28,7 +28,7 @@ undecided`, $0.
   і нових перевірок `doctor`. Тому в `factory.json` немає розділу `delivery`: щоб запустити з редакцією, допишіть його
   (`examples/next-supabase/control/factory.json`).
 - Поставку зроблено вручну: `git push`, `gh pr create --body-file <store>/runs/<run>/proof-pack.md`, автозлиття ввімкнула людина.
-- UAT після злиття — e2e у CI близнюка (11/11, усі чотири AC-BULK); `factory uat` тут не запускався.
+- UAT після злиття — e2e у CI двійника (11/11, усі чотири AC-BULK); `factory uat` тут не запускався.
 - Шлях до вимоги в `intent` замінено на `<twin>/requirements/…` (у прогоні був локальний шлях).
 
 Чесні обмеження цього прогону (fallow у PR червоний, будівельник сам позначив рядки матриці) — `docs/uk/limits.md`.
