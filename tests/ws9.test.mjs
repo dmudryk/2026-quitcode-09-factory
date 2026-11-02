@@ -93,6 +93,20 @@ test('[P1.2] the importer turns PM acceptance criteria into a task the factory r
   assert.ok(Object.values(task.nonFunctionals).every((v) => v === 'TBD'));
 });
 
+test('[P1.2] the importer reads criteria written as table rows or as multi-line «Дано / Коли / Тоді» blocks', () => {
+  const table = importer(['--file', path.join(here, 'fixtures', 'ws9', 'requirement-table.md'), '--ac', 'AC-REP-01,AC-REP-02', '--id', 'rep', '--format', 'table']);
+  assert.equal(table.status, 0, table.stderr);
+  assert.deepEqual(JSON.parse(table.stdout).requirements.map((r) => r.description), [
+    'є три заявки за місяць · менеджер натискає «Експорт» · завантажується CSV з трьома рядками',
+    'заявок немає · менеджер натискає «Експорт» · бачить «Немає даних за період»']);
+  const block = importer(['--file', path.join(here, 'fixtures', 'ws9', 'requirement-block.md'), '--ac', 'AC-REM-01,AC-REM-02', '--id', 'rem', '--format', 'block']);
+  assert.equal(block.status, 0, block.stderr);
+  const [first, second] = JSON.parse(block.stdout).requirements.map((r) => r.description);
+  assert.equal(first, 'Дано заявка починається завтра Коли настає 9:00 Тоді людина отримує лист-нагадування');
+  assert.equal(second, 'Дано нагадування вже надіслано Коли настає 9:00 знову Тоді другого листа немає', 'the next heading ends the block');
+  assert.equal(importer(['--file', REQ, '--ac', 'AC-BULK-01', '--id', 'x', '--format', 'nope']).status, 2);
+});
+
 test('[P1.2] the importer refuses criteria it cannot find, and HTML comments are not criteria', () => {
   const res = importer(['--file', REQ, '--ac', 'AC-BULK-09', '--id', 'x']);
   assert.equal(res.status, 2);

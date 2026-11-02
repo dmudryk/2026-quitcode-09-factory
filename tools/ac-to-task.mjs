@@ -10,6 +10,7 @@
 // Запуск:
 //   node tools/ac-to-task.mjs --file <репо>/requirements/03-leave.md --ac AC-LEAVE-07,AC-LEAVE-08 --id leave-revision \
 //        [--holdout leave-db] [--target <репо>] [--size small|medium|large] [--change <id зміни openspec>] [--out <файл>]
+//        [--format lines|table|block]   (як PM записує критерії; типово lines — див. ТОЧКУ РОЗШИРЕННЯ 3)
 //   node tools/ac-to-task.mjs --issue <власник>/<репо>#12 --ac … --id …      (тіло issue читається через `gh issue view`)
 // --target <репо>: pass-to-pass = критерії, уже «реалізовано» в <репо>/docs/conformance.md, для яких є Vitest-тест
 //   (захист від регресії); захищені шаблони, що не збігаються з жодним файлом репо, відкидаються з попередженням.
@@ -43,21 +44,44 @@ function readSource() {
   return fail("вкажіть --file <вимога.md> або --issue <власник/репо#N>");
 }
 
-// ТОЧКА РОЗШИРЕННЯ 3 — як знайти критерії в тексті. Типово: ОДИН РЯДОК на критерій, ID на початку рядка, далі «:» чи «—»
-// (або одразу «Дано»). Рядок може бути пунктом списку, пунктом з номером, чекбоксом issue, заголовком, цитатою, жирним ID:
-//   - AC-LEAVE-07: Дано … Коли … Тоді …        - [ ] **AC-LEAVE-07** — Дано …        ### AC-LEAVE-07: Дано …
-// Таблиці та багаторядкові блоки «Дано / Коли / Тоді» потребують зміни саме тут (рецепти — у docs/uk/adapt-importer.md).
-// Повертає Map: ID → опис критерію (перший запис ID виграє).
-function parseAcs(text) {
-  const line = new RegExp(`^\\s*(?:>\\s*)?(?:#{1,6}\\s+)?(?:[-*+]\\s+|\\d+[.)]\\s+)?(?:\\[[ xX]\\]\\s+)?(?:\\*\\*|__)?(${AC_ID})(?![\\w-])`
-    + `(?:\\*\\*|__)?(?:\\s*(?::|—|–|-\\s)|\\s+(?=Дано))\\s*(.*)$`);
-  const acs = new Map();
-  for (const l of text.split("\n")) {
-    const m = l.match(line);
-    if (m && !acs.has(m[1])) acs.set(m[1], m[2].trim());
-  }
-  return acs;
-}
+// ТОЧКА РОЗШИРЕННЯ 3 — як знайти критерії в тексті. Три готові формати (--format), кожен повертає Map: ID → опис критерію.
+// Якщо вашого формату тут немає, додайте свою функцію в PARSERS — приклади й промпт у docs/uk/adapt-importer.md.
+const PARSERS = {
+  // «lines» (типово): ОДИН РЯДОК на критерій, ID на початку, далі «:» чи «—» (або одразу «Дано»). Рядок може бути пунктом
+  // списку, пунктом з номером, чекбоксом issue, заголовком, цитатою, з жирним ID:
+  //   - AC-LEAVE-07: Дано … Коли … Тоді …        - [ ] **AC-LEAVE-07** — Дано …        ### AC-LEAVE-07: Дано …
+  lines(text) {
+    const line = new RegExp(`^\\s*(?:>\\s*)?(?:#{1,6}\\s+)?(?:[-*+]\\s+|\\d+[.)]\\s+)?(?:\\[[ xX]\\]\\s+)?(?:\\*\\*|__)?(${AC_ID})(?![\\w-])`
+      + `(?:\\*\\*|__)?(?:\\s*(?::|—|–|-\\s)|\\s+(?=Дано))\\s*(.*)$`);
+    const acs = new Map();
+    for (const l of text.split("\n")) {
+      const m = l.match(line);
+      if (m && !acs.has(m[1])) acs.set(m[1], m[2].trim()); // перший запис ID виграє
+    }
+    return acs;
+  },
+  // «table»: рядок таблиці, перша клітинка — ID, решта — текст критерію:  | AC-X-01 | Дано … | Коли … | Тоді … |
+  table(text) {
+    const acs = new Map();
+    for (const l of text.split("\n")) {
+      const cells = l.split("|").map((c) => c.trim()).filter(Boolean);
+      if (cells.length >= 2 && new RegExp(`^${AC_ID}$`).test(cells[0]) && !acs.has(cells[0])) acs.set(cells[0], cells.slice(1).join(" · "));
+    }
+    return acs;
+  },
+  // «block»: заголовок з ID («### AC-X-01 — назва»), а «Дано / Коли / Тоді» — окремими рядками під ним, до наступного заголовка.
+  block(text) {
+    const acs = new Map();
+    let current = null;
+    for (const l of text.split("\n")) {
+      const head = l.match(new RegExp(`^#{2,6}\\s+(${AC_ID})(?![\\w-])`));
+      if (head) { current = head[1]; acs.set(current, ""); continue; }
+      if (/^#{1,6}\s/.test(l)) { current = null; continue; }
+      if (current && l.trim()) acs.set(current, `${acs.get(current)} ${l.replace(/^\s*[-*]\s+/, "").replaceAll("**", "").trim()}`.trim());
+    }
+    return acs;
+  },
+};
 
 // ТОЧКА РОЗШИРЕННЯ 4 — назва задачі та «навіщо». Типово: перший заголовок «# …» (без префікса «Вимога:») і розділ «## Навіщо».
 function parseTitleAndWhy(text, fallback) {
@@ -115,7 +139,9 @@ const id = opt("id") ?? fail("потрібен --id <ідентифікатор 
 const wanted = (opt("ac") ?? fail("потрібен --ac AC-…,AC-…")).split(",").map((s) => s.trim()).filter(Boolean);
 const text = raw.replace(/<!--[\s\S]*?-->/g, ""); // коментарі HTML у вимогах — не критерії
 const { title, why } = parseTitleAndWhy(text, id);
-const acs = parseAcs(text);
+const format = opt("format") ?? "lines";
+const parse = PARSERS[format] ?? fail(`невідомий --format ${format}; є: ${Object.keys(PARSERS).join(", ")}`);
+const acs = parse(text);
 const missing = wanted.filter((a) => !acs.has(a));
 if (missing.length) fail(`не знайдено в ${source}: ${missing.join(", ")} (знайдено: ${[...acs.keys()].join(", ") || "нічого"})`);
 
