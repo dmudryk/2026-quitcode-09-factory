@@ -5,12 +5,13 @@ import { FAIL, NOT_EARNED, PASS, gateResult } from './result.mjs';
 import { globToRegExp, listFiles, sha256 } from '../util.mjs';
 
 const ID = 'maintainability';
-const DEFAULT_SOURCE_GLOBS = ['**/*.mjs', '**/*.js', '**/*.cjs', '**/*.ts'];
+// Course edition: .tsx (React/Next.js components) is a source file too.
+const DEFAULT_SOURCE_GLOBS = ['**/*.mjs', '**/*.js', '**/*.cjs', '**/*.ts', '**/*.tsx'];
 const DEFAULT_MIN_LINES = 6;
 const MIN_WINDOW_CHARS = 60;
 const SKIP_DIRS = ['.git', 'node_modules'];
-const EXTENSIONS = ['.mjs', '.js', '.cjs', '.ts'];
-const INDEX_FILES = ['index.mjs', 'index.js', 'index.ts'];
+const EXTENSIONS = ['.mjs', '.js', '.cjs', '.ts', '.tsx'];
+const INDEX_FILES = ['index.mjs', 'index.js', 'index.ts', 'index.tsx'];
 const RULE_NAMES = ['max-file-lines', 'dependency', 'duplication'];
 const PREVIEW = 5;
 

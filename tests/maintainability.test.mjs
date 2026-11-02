@@ -376,3 +376,16 @@ test('[P4.7] every finding says what is wrong and how to fix it', (t) => {
   assert.match(res.summary, /3 findings in 1 checked file \(1 max-file-lines, 1 dependency, 1 duplication\)/);
   assert.deepEqual(res.feedback, { summary: res.summary, remediation: res.remediation });
 });
+
+// Course edition: TypeScript React files (.tsx) are sources by default, and imports resolve to them without an extension.
+test('[P4.7] .tsx files are checked by default and an extensionless import resolves to a .tsx module', (t) => {
+  const root = fixture(t, {
+    'src/ui/Page.tsx': ["import { query } from '../db/client';", 'export default function Page() { return <main>{query()}</main>; }'],
+    'src/db/client.tsx': ['export const query = () => 1;'],
+  });
+  const big = checkMaintainability({ root, files: ['src/ui/Page.tsx'], rules: { maxFileLines: 1 } });
+  assert.equal(big.verdict, FAIL, 'a .tsx file over the limit is a finding, not «no source file»');
+  const layered = checkMaintainability({ root, files: ['src/ui/Page.tsx'], rules: { dependencyRules: [LAYER_RULE] } });
+  assert.equal(layered.verdict, FAIL);
+  assert.deepEqual(targets(layered), [[1, 'src/db/client.tsx']]);
+});
