@@ -29,6 +29,10 @@ export function createWorkspace(target, wsDir) {
 }
 
 export function removeWorkspace(target, wsDir) {
+  // Unlink the node_modules junction first: `git worktree remove --force` (Git for Windows 2.53) follows a directory
+  // junction and deletes the target's installed dependencies (test [P5.2] in tests/ws9.test.mjs catches it).
+  const deps = path.join(wsDir, 'node_modules');
+  if (fs.lstatSync(deps, { throwIfNoEntry: false })?.isSymbolicLink()) fs.unlinkSync(deps);
   if (fs.existsSync(wsDir)) git(target, ['worktree', 'remove', '--force', wsDir], { allowFail: true });
   if (fs.existsSync(wsDir)) fs.rmSync(wsDir, { recursive: true, force: true });
   git(target, ['worktree', 'prune'], { allowFail: true });
