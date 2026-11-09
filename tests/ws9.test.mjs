@@ -93,6 +93,23 @@ test('[P1.2] the importer turns PM acceptance criteria into a task the factory r
   assert.ok(Object.values(task.nonFunctionals).every((v) => v === 'TBD'));
 });
 
+// Team property-workflows (WS9 bonus): the PM writes requirements as GitHub issues «Requirement» with one line per
+// criterion, «- AC-VENDOR-NN: Given … When … Then …» (English keywords); /requirements-sync puts the issue body into
+// requirements/<N>-<slug>.md of the developer's repo. The stock --file (lines) format reads it without an adapter.
+test('[P1.2] team property-workflows: the PM issue snapshot gives one requirement per AC, IDs and «Then» verbatim', () => {
+  const file = path.join(here, 'fixtures', 'ws9', 'requirement-property-workflows.md');
+  const ids = Array.from({ length: 10 }, (_, i) => `AC-VENDOR-${String(i + 1).padStart(2, '0')}`);
+  const res = importer(['--file', file, '--ac', ids.join(','), '--id', 'vendor', '--holdout', 'vendor-db']);
+  assert.equal(res.status, 0, res.stderr);
+  const task = JSON.parse(res.stdout);
+  assert.equal(task.title, 'Requirement: Assign a vendor and let the vendor work on their own tasks');
+  assert.deepEqual(task.requirements.map((r) => r.id), ids, 'as many requirements as criteria, IDs character for character');
+  assert.ok(task.requirements.every((r) => /^Given .+ When .+ Then .+/.test(r.description)));
+  assert.match(task.requirements[9].description, /Then V sees the message "No tasks assigned to you yet\." and no empty table\.$/);
+  assert.deepEqual(task.requirements[6].verifiedBy, ['visible:AC-VENDOR-07', 'holdout:vendor-db']);
+  assert.ok(Object.values(task.nonFunctionals).every((v) => v === 'TBD'));
+});
+
 test('[P1.2] the importer reads criteria written as table rows or as multi-line «Дано / Коли / Тоді» blocks', () => {
   const table = importer(['--file', path.join(here, 'fixtures', 'ws9', 'requirement-table.md'), '--ac', 'AC-REP-01,AC-REP-02', '--id', 'rep', '--format', 'table']);
   assert.equal(table.status, 0, table.stderr);
